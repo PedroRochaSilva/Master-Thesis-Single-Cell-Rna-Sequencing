@@ -1,0 +1,554 @@
+---
+title: "AgeDifferencesAnalysis"
+author: "PedroSilva, Andréa Tijhuis"
+date: "2024-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+fig_dir = "C:/Users/Asus/I3S/Data/ALLPLOTS/1stScriptPlots"
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, dpi = 300,
+                      dev.args = list(png = list(type = "cairo")),
+                      fig.width = 8, fig.height = 5,
+                      fig.path = fig_dir)
+if (!dir.exists(fig_dir)) {
+  dir.create(fig_dir)
+}
+```
+
+## Laysetwd
+
+```{r setwd}
+setwd("C:/Users/Asus/I3S/Data")
+library(Seurat)
+library(patchwork)
+library(tidyverse)
+library(ggpmisc)
+```
+
+
+## load data
+
+```{r load_data}
+# load data1
+data_neo <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/neonatal/EL230718_2/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix2
+neo <- CreateSeuratObject(counts = data_neo,
+                          project = "neo_natal",
+                          min.cells = 10,
+                          min.features = 200)
+
+# load data2
+data_1day <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/1Day/EL230718_3/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix2
+day1 <- CreateSeuratObject(counts = data_1day,
+                          project = "1_day",
+                          min.cells = 10,
+                          min.features = 200)
+
+# load data3
+data_year10 <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/10Yrs/EL230718_4/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix2
+year10 <- CreateSeuratObject(counts = data_year10,
+                          project = "10_years",
+                          min.cells = 10,
+                          min.features = 200)
+
+# load data4
+data_year42 <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/42Yrs/EL230718_6/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix2
+year42 <- CreateSeuratObject(counts = data_year42,
+                          project = "42_years",
+                          min.cells = 10,
+                          min.features = 200)
+
+
+# load data5
+data_75 <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/75Yrs/EL230718_7/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix2
+year75 <- CreateSeuratObject(counts = data_75,
+                          project = "75_years",
+                          min.cells = 10,  #Alterar de 3 para 10?
+                          min.features = 200)
+
+# load data6
+data_year87 <- Read10X(data.dir = "C:/Users/Asus/I3S/Data/87Yrs/EL230718_8/filtered_feature_bc_matrix", strip.suffix = TRUE)
+# make RNA matrix
+year87 <- CreateSeuratObject(counts = data_year87,
+                          project = "87_years",
+                          min.cells = 10,
+                          min.features = 200)
+```
+
+## NumberofCounts
+
+```{r counts}
+
+# check out number of cells
+neocounts <- length(rownames(neo@meta.data))
+
+
+# check out number of cells
+day1counts <- length(rownames(day1@meta.data))
+
+
+# check out number of cells
+year10counts <- length(rownames(year10@meta.data))
+
+
+# check out number of cells
+year42counts <- length(rownames(year42@meta.data))
+
+
+# check out number of cells
+year75counts <- length(rownames(year75@meta.data))
+
+
+# check out number of cells6
+year87counts <- length(rownames(year87@meta.data))
+```
+
+## Visualize Data Counts
+
+```{r plot_counts, echo=TRUE, message=FALSE}
+# Compile counts into a data frame
+counts_df <- data.frame(
+  Age = c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years"),
+  NumberofCells = c(neocounts, day1counts, year10counts, year42counts, year75counts, year87counts)
+)
+
+# Create a bar graph
+library(ggplot2)
+library(dplyr)
+
+# Convert Age to a factor with specific levels
+counts_df <- counts_df %>%
+  mutate(Age = factor(Age, levels = c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years")))
+
+# Create the bar plot with text labels above each bar
+ggplot(counts_df, aes(x = Age, y = NumberofCells, fill = Age)) +
+  geom_bar(stat = "identity") + 
+  geom_text(aes(label = NumberofCells, y = NumberofCells + max(NumberofCells) * 0.02),
+            color = "black", size = 6, fontface = "bold") +  # Increased from 4 to 6
+  scale_fill_manual(values = c("Neonatal" = "#E41A1C", "1Day" = "#377EB8", "10Years" = "#4DAF4A", 
+                               "42Years" = "#984EA3", "75Years" = "#FF7F00", "87Years" = "#A65628")) +
+  theme_minimal() +
+  theme(text = element_text(size = 14),  # Base text size
+        axis.title = element_text(size = 16),  # Axis titles
+        plot.title = element_text(size = 18)) +  # Plot title
+  labs(
+    title = "Cell Counts Across Different Ages",
+    x = "Age",
+    y = "Number of Cells"
+  ) +
+  theme(legend.position = "none")
+```
+
+
+## Genes Expressed Boxplots
+
+
+```{r boxplots}
+
+##<10k
+
+# Combine the data into one data frame
+data_combined <- data.frame(
+  Dataset = rep(c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years"),
+                times = c(neocounts, day1counts, year10counts,
+                          year42counts, year75counts, year87counts)),
+  GenesExpressed = c(neo@meta.data$nFeature_RNA, day1@meta.data$nFeature_RNA,
+                     year10@meta.data$nFeature_RNA, year42@meta.data$nFeature_RNA,
+                     year75@meta.data$nFeature_RNA, year87@meta.data$nFeature_RNA)
+)
+
+
+  
+# Create the boxplot with points
+library(ggplot2)
+library(dplyr)
+
+data_combined <- data_combined %>%
+  mutate(Dataset = factor(Dataset, levels = c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years")))
+
+# Calculate median for each Dataset
+medians <- data_combined %>%
+  group_by(Dataset) %>%
+  summarise(median_value = median(GenesExpressed))
+
+# Set a fixed y position for all the median labels
+fixed_y_position <- max(data_combined$GenesExpressed) + 2  # Adjust the '2' to control label positioning
+
+ggplot(data_combined, aes(x = Dataset, y = GenesExpressed)) +
+  geom_boxplot(outliers = FALSE, fill = "lightblue", alpha = 0.6) +
+  geom_jitter(aes(color = Dataset), size = 1.2, alpha = 0.6, width = 0.2) +  # Increased point size
+  geom_text(data = medians, aes(x = Dataset, y = fixed_y_position, 
+                               label = paste("Median:", round(median_value, 1))), 
+            color = "black", size = 4) +  # Increased from 3.5 to 5
+  theme_minimal() +
+  theme(text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 18)) +
+  scale_color_manual(values = c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628")) +
+  labs(
+    title = "Genes Expressed Per Cell Across Datasets",
+    x = "Dataset",
+    y = "Number of Genes Expressed"
+  ) +
+  theme(legend.position = "none")
+
+
+
+
+
+
+```
+
+
+##Quality Control
+
+```{r QC}
+library(Seurat)
+# Merge the datasets
+merged_data <- merge(
+  neo, 
+  y = list(day1, year10, year42, year75, year87), 
+  add.cell.ids = c("neo", "day1", "year10", "year42", "year75", "year87"),
+  project = "CombinedData"
+)
+
+age_colors <- c(
+  "Neonatal" = "#E41A1C",  # Red
+  "1Day" = "#377EB8",      # Blue
+  "10Years" = "#4DAF4A",   # Green
+  "42Years" = "#984EA3",   # Purple
+  "75Years" = "#FF7F00",   # Orange
+  "87Years" = "#A65628"    # Brown
+)
+
+# Add metadata columns for mitochondrial and ribosomal gene percentages
+merged_data[["percent.mt"]] <- PercentageFeatureSet(merged_data, pattern = "^MT-")
+merged_data[["percent.rb"]] <- PercentageFeatureSet(merged_data, pattern = "RP[LS]")
+merged_data[["log10GenesPerUMI"]] <- log10(merged_data$nFeature_RNA) / log10(merged_data$nCount_RNA)
+
+# Add an 'Age' column to the metadata
+merged_data@meta.data <- merged_data@meta.data %>%
+  mutate(Age = case_when(
+    grepl("^neo_", rownames(.)) ~ "Neonatal",
+    grepl("^day1_", rownames(.)) ~ "1Day",
+    grepl("^year10_", rownames(.)) ~ "10Years",
+    grepl("^year42_", rownames(.)) ~ "42Years",
+    grepl("^year75_", rownames(.)) ~ "75Years",
+    grepl("^year87_", rownames(.)) ~ "87Years"
+  ))
+
+# Calculate the number of cells for each age group
+cell_counts <- merged_data@meta.data %>%
+  group_by(Age) %>%
+  summarise(Cell_Count = n()) %>%
+  mutate(Age_Label = paste0(Age, " (n = ", Cell_Count, ")"))
+
+
+# Merge the cell counts back into the metadata
+merged_data@meta.data <- merged_data@meta.data %>%
+  left_join(cell_counts, by = "Age")
+
+rownames(merged_data@meta.data) <- colnames(merged_data@assays$RNA)
+
+# Factor the 'Age' column
+merged_data@meta.data$Age <- factor(
+  merged_data@meta.data$Age, 
+  levels = c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years")
+)
+
+# Convert Age_Label to a factor with the same order as Age
+merged_data@meta.data <- merged_data@meta.data %>%
+  mutate(Age_Label = factor(Age_Label, levels = unique(Age_Label[order(Age)])))
+
+
+# Plotting before filtering
+# Plot 1: Number of UMIs per cell
+ggplot(merged_data@meta.data, aes(color = Age, x = nCount_RNA, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("Cell density") +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of UMIs per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors)      
+
+# Plot 2: Distribution of genes detected per cell
+ggplot(merged_data@meta.data, aes(color = Age, x = nFeature_RNA, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 300, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Genes Detected per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 3: Genes per UMI (Novelty Score)
+ggplot(merged_data@meta.data, aes(x = log10GenesPerUMI, color = Age, fill = Age)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  geom_vline(xintercept = 0.8, linetype = "dashed", color = "red") +
+  ggtitle("Genes per UMI (Novelty Score)") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 4: Distribution of mitochondrial gene expression per cell
+ggplot(merged_data@meta.data, aes(color = Age, x = percent.mt, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 0.2, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Mitochondrial Gene Expression per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 5: Distribution of ribosomal gene expression per cell
+ggplot(merged_data@meta.data, aes(color = Age, x = percent.rb, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 0.2, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Ribosomal Gene Expression per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 6: Correlation between genes detected and number of UMIs
+ggplot(merged_data@meta.data, aes(x = nCount_RNA, y = nFeature_RNA, color = percent.mt)) + 
+  geom_point(alpha = 0.6) + 
+  scale_colour_gradient(low = "gray90", high = "black") +
+  stat_smooth(method = lm) +
+      stat_poly_eq (
+    formula = y ~ x,
+    aes(label = paste("r =", after_stat(r.squared)^0.5), # Calculate r from R²
+    parse = FALSE,
+    label.x = "right",
+    label.y = "top",
+    size = 4
+  ) ) +
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_classic() +
+  theme(text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 18),
+        strip.text = element_text(size = 12)) +
+  geom_vline(xintercept = 500, color = "red", linetype = "dashed") +  
+  geom_hline(yintercept = 250, color = "red", linetype = "dashed") +  
+  facet_wrap(~Age_Label) +  # Use the custom label here
+  labs(
+    title = "Correlation between Genes Detected and Number of UMIs",
+    x = "Number of UMIs (log scale)",
+    y = "Number of Genes Detected (log scale)",
+    color = "Mitochondrial %"
+  ) #(Adicionar Linha de media e mediana a cada idade)
+```
+
+
+
+
+```{r QC2}
+# Filter the Seurat object BEFORE violin plots
+
+filtered_data <- subset(
+  merged_data, 
+  subset = (nCount_RNA >= 500) & 
+           (nFeature_RNA >= 250) & 
+           (log10GenesPerUMI > 0.80) &  
+           (percent.mt < 20)
+)
+
+
+
+# Check quantiles for mitochondrial RNA to determine cutoff
+quantile(merged_data@meta.data$percent.mt, probs = c(0.75,  0.8, 0.85, 0.9, 0.95))
+quantile(merged_data@meta.data$percent.rb, probs = c(0.75,  0.8, 0.85, 0.9, 0.95))
+
+# For the violin plots, modify to:
+VlnPlot(filtered_data, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), 
+        pt.size = 0.1) +  # Smaller points
+  theme(text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 18)) +
+  xlab("Age")  # Change x-axis label from "identity" to "Age"
+
+VlnPlot(filtered_data, features = c("nCount_RNA", "nFeature_RNA", "percent.rb"), 
+        pt.size = 0.1) +
+  theme(text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 18)) +
+  xlab("Age")
+
+
+# Reassign to filtered Seurat object
+#filtered_data <- CreateSeuratObject(filtered_data, meta.data = filtered_data@meta.data)
+
+#summary(merged_data@meta.data$percent.rb)
+#summary(merged_data@meta.data$percent.mt)  ##Update
+
+# Subset the Seurat object based on quality control criteria
+##merged_data <- subset(merged_data, subset = nFeature_RNA > 200 & nFeature_RNA < 15000 & percent.mt < 5.5 & percent.rb < 5.5)
+
+```
+
+
+```{r Correlation}
+
+# Calculate the number of cells for each age group
+cell_counts <- filtered_data@meta.data %>%
+  group_by(Age) %>%
+  summarise(Cell_Count = n()) %>%
+  mutate(Age_Label = paste0(Age, " (n = ", Cell_Count, ")"))
+
+
+# Merge the cell counts back into the metadata
+filtered_data@meta.data <- filtered_data@meta.data %>%
+  left_join(cell_counts, by = "Age")
+
+rownames(filtered_data@meta.data) <- colnames(filtered_data@assays$RNA)
+
+# Factor the 'Age' column
+filtered_data@meta.data$Age <- factor(
+  filtered_data@meta.data$Age, 
+  levels = c("Neonatal", "1Day", "10Years", "42Years", "75Years", "87Years")
+)
+
+# Convert Age_Label to a factor with the same order as Age
+filtered_data@meta.data <- filtered_data@meta.data %>%
+  mutate(Age_Label.y = factor(Age_Label.y, levels = unique(Age_Label.y[order(Age)])))
+
+
+# Plot 1: Number of UMIs per cell
+ggplot(filtered_data@meta.data, aes(color = Age, x = nCount_RNA, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  ylab("Cell density") +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of UMIs per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 2: Distribution of genes detected per cell
+ggplot(filtered_data@meta.data, aes(color = Age, x = nFeature_RNA, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 300, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Genes Detected per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# Plot 3: Genes per UMI (Novelty Score)
+ggplot(filtered_data@meta.data, aes(x = log10(nFeature_RNA) / log10(nCount_RNA), color = Age, fill = Age)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  geom_vline(xintercept = 0.8, linetype = "dashed", color = "red") +
+  ggtitle("Genes per UMI (Novelty Score)") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# **New Plot**: Distribution of mitochondrial gene expression per cell
+ggplot(filtered_data@meta.data, aes(color = Age, x = percent.mt, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 0.2, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Mitochondrial Gene Expression per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+# **New Plot**: Distribution of ribosomal gene expression per cell
+ggplot(filtered_data@meta.data, aes(color = Age, x = percent.rb, fill = Age)) + 
+  geom_density(alpha = 0.2) + 
+  scale_x_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = 0.2, linetype = "dashed", color = "red") +
+  ggtitle("Distribution of Ribosomal Gene Expression per Cell") +
+  scale_color_manual(values = age_colors) +   
+  scale_fill_manual(values = age_colors) 
+
+
+# Visualize the correlation between genes detected and number of UMIs
+filtered_data@meta.data %>%
+  ggplot(aes(x = nCount_RNA, y = nFeature_RNA, color = percent.mt)) + 
+  geom_point(alpha = 0.6) + 
+  scale_colour_gradient(low = "gray90", high = "black")+
+  stat_smooth(method = lm) + #Adicionar R2 e correlation
+    stat_poly_eq (
+    formula = y ~ x,
+    aes(label = paste("r =", after_stat(r.squared)^0.5), # Calculate r from R²
+    parse = FALSE,
+    label.x = "right",
+    label.y = "top",
+    size = 4
+  ) )+
+  scale_x_log10() + 
+  scale_y_log10() + 
+  theme_classic() +
+  theme(text = element_text(size = 14),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 18),
+        strip.text = element_text(size = 12)) +
+  geom_vline(xintercept = 500, color = "red", linetype = "dashed") +  
+  geom_hline(yintercept = 250, color = "red", linetype = "dashed") +  
+  facet_wrap(~Age_Label.y) + 
+  labs(
+    title = "Correlation between Genes Detected and Number of UMIs",
+    x = "Number of UMIs (log scale)",
+    y = "Number of Genes Detected (log scale)",
+    color = "Mitochondrial %"
+  )
+```
+
+
+
+## Comparison of normalization methods
+
+```{r normalizationmethods}
+
+library(Seurat)
+
+#Log Normalization
+
+##year87_datalog <- NormalizeData(year87_data, normalization.method = "LogNormalize", scale.factor = 10000)
+##year87_datalog <- FindVariableFeatures(year87_datalog, selection.method = "vst", nfeatures = 2000)
+##all.genes <- rownames(year87_datalog)
+##year87_datalog <- ScaleData(year87_datalog, features = all.genes)
+
+##top10var <- head(VariableFeatures(year87_datalog), 10)
+
+# plot variable features with and without labels
+##plot1 <- VariableFeaturePlot(year87_datalog)
+##top10plot <- LabelPoints(plot = plot1, points = top10var, repel = T)
+##top10plot
+
+
+#SCTransform
+
+##year87_datasct <- SCTransform(year87_data, verbose = FALSE)
+##year87_datasct <- FindVariableFeatures(year87_datasct, selection.method = "vst", nfeatures = 2000)
+##all.genes <- rownames(year87_datasct)
+##year87_datasct <- ScaleData(year87_datasct, features = all.genes)
+
+##top10var <- head(VariableFeatures(year87_datasct), 10)
+
+# plot variable features with and without labels
+##plot2 <- VariableFeaturePlot(year87_datasct)
+##top10plot <- LabelPoints(plot = plot2, points = top10var, repel = T)
+##top10plot
+
+
+```
+
+
+## Save Session
+
+```{r savesession}
+##Fout <- "C:/Users/Asus/I3S/Data/SCEAnalysis/Saves/Mysession.RData"
+##save.image(Fout,safe = TRUE)
+```
